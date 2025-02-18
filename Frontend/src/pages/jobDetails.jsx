@@ -1,28 +1,12 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-
-const jobDetails = {
-  fresher: {
-    title: "MERN Stack Developer (Fresher)",
-    salary: "₹2 LPA - ₹8 LPA",
-    experience: "0 - 2 years",
-    description:
-      "We are looking for freshers with strong skills in MongoDB, Express.js, React.js, and Node.js (MERN). Passionate learners are welcome!",
-  },
-  lead: {
-    title: "MERN Stack Lead Developer",
-    salary: "₹5 LPA - ₹12 LPA",
-    experience: "4+ years",
-    description:
-      "We are hiring an experienced MERN Stack Lead Developer to architect and lead full-stack applications. Strong leadership skills required.",
-  },
-};
+import axios from "axios";
 
 const JobDetails = () => {
-  const { role } = useParams();
-  const job = jobDetails[role];
+  const [loading, setLoading] = useState(false); // New state for loader
+  const { jobId } = useParams();
   const navigate = useNavigate();
-
+  const [job, setJob] = useState(null);
   const [formData, setFormData] = useState({
     name: "",
     email: "",
@@ -32,6 +16,20 @@ const JobDetails = () => {
   });
 
   const [submitted, setSubmitted] = useState(false);
+
+  useEffect(() => {
+    const fetchJob = async () => {
+      try {
+        const response = await axios.get(`http://localhost:5000/jobs/${jobId}`);
+        console.log(response)
+        setJob(response.data);
+      } catch (error) {
+        console.error("Error fetching job:", error);
+      }
+    };
+
+    fetchJob();
+  }, [jobId]);
 
   if (!job) {
     return (
@@ -43,18 +41,44 @@ const JobDetails = () => {
 
   const handleChange = (e) => {
     const { name, value, type, files } = e.target;
-
     setFormData({
       ...formData,
       [name]: type === "file" ? files[0] : value,
     });
   };
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    setSubmitted(true);
-  };
+  
 
+const handleSubmit = async (e) => {
+  e.preventDefault();
+  setLoading(true); // Show loader
+
+  const formDataToSend = new FormData();
+  formDataToSend.append("name", formData.name);
+  formDataToSend.append("email", formData.email);
+  formDataToSend.append("resume", formData.resume);
+  formDataToSend.append("degree", formData.degree);
+  formDataToSend.append("passoutYear", formData.passoutYear);
+  formDataToSend.append("jobTitle", job.title);
+
+  try {
+    const response = await axios.post("http://localhost:5000/send-application", formDataToSend, {
+      headers: { "Content-Type": "multipart/form-data" },
+    });
+
+    if (response.data.success) {
+      setSubmitted(true);
+    } else {
+      alert("Failed to send application. Try again.");
+    }
+  } catch (error) {
+    console.error("Error submitting application:", error);
+  } finally {
+    setLoading(false); // Hide loader
+  }
+};
+
+  
   return (
     <div className="min-h-screen mt-12 bg-black text-white px-6 py-12 flex flex-col items-center">
       <div className="max-w-3xl w-full">
@@ -67,7 +91,7 @@ const JobDetails = () => {
         <p className="text-lg text-gray-300 mb-4">
           <strong>Experience:</strong> {job.experience}
         </p>
-        <p className="text-lg text-gray-300 mb-6">{job.description}</p>
+        <p className="text-lg text-gray-300 mb-6">{job.jobDescription}</p>
 
         {submitted ? (
           <p className="text-green-400 text-xl font-semibold">
@@ -78,7 +102,6 @@ const JobDetails = () => {
             onSubmit={handleSubmit}
             className="bg-gray-800 p-6 rounded-lg shadow-lg"
           >
-            {/* Name Input */}
             <div className="mb-4">
               <label className="block text-gray-300" htmlFor="name">
                 Name:
@@ -91,11 +114,9 @@ const JobDetails = () => {
                 onChange={handleChange}
                 required
                 className="w-full p-2 mt-1 rounded bg-gray-700 text-white border border-gray-600"
-                aria-label="Enter your name"
               />
             </div>
 
-            {/* Email Input */}
             <div className="mb-4">
               <label className="block text-gray-300" htmlFor="email">
                 Email:
@@ -108,11 +129,9 @@ const JobDetails = () => {
                 onChange={handleChange}
                 required
                 className="w-full p-2 mt-1 rounded bg-gray-700 text-white border border-gray-600"
-                aria-label="Enter your email"
               />
             </div>
 
-            {/* Resume Upload */}
             <div className="mb-4">
               <label className="block text-gray-300" htmlFor="resume">
                 Resume (Upload):
@@ -124,11 +143,9 @@ const JobDetails = () => {
                 onChange={handleChange}
                 required
                 className="w-full p-2 mt-1 rounded bg-gray-700 text-white border border-gray-600"
-                aria-label="Upload your resume"
               />
             </div>
 
-            {/* Degree Qualification */}
             <div className="mb-4">
               <label className="block text-gray-300" htmlFor="degree">
                 Degree Qualification:
@@ -141,11 +158,9 @@ const JobDetails = () => {
                 onChange={handleChange}
                 required
                 className="w-full p-2 mt-1 rounded bg-gray-700 text-white border border-gray-600"
-                aria-label="Enter your degree qualification"
               />
             </div>
 
-            {/* Passout Year */}
             <div className="mb-4">
               <label className="block text-gray-300" htmlFor="passoutYear">
                 Passout Year:
@@ -158,24 +173,27 @@ const JobDetails = () => {
                 onChange={handleChange}
                 required
                 className="w-full p-2 mt-1 rounded bg-gray-700 text-white border border-gray-600"
-                aria-label="Enter your passout year"
               />
             </div>
 
-            {/* Apply Now Button */}
             <button
-              type="submit"
-              className="bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-6 rounded-lg transition w-full cursor-pointer"
+            type="submit"
+            className="bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-6 rounded-lg transition w-full flex justify-center items-center"
+            disabled={loading} // Disable while loading
             >
-              Apply Now
+                  {loading ? (
+                  <span className="animate-spin border-t-2 border-white rounded-full w-5 h-5 mr-2"></span>
+                  ) : (
+                           "Apply Now"
+                  )}
             </button>
+
           </form>
         )}
 
-        {/* Back to Careers Button */}
         <button
-          className="mt-6 bg-gray-600 hover:bg-gray-700 text-white font-semibold py-2 px-6 rounded-lg transition cursor-pointer"
-          onClick={() => navigate("/")}
+          className="mt-6 bg-gray-600 hover:bg-gray-700 text-white font-semibold py-2 px-6 rounded-lg transition"
+          onClick={() => navigate("/careers")}
         >
           Back to Careers
         </button>
